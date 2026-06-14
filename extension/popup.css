@@ -1,0 +1,162 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  background: #f8f9fa;
+  color: #212529;
+  width: 400px;
+  min-height: 500px;
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px;
+  gap: 10px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+header .logo {
+  font-size: 20px;
+}
+
+header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #003366;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 200px;
+  max-height: 320px;
+}
+
+.message {
+  padding: 10px 12px;
+  border-radius: 8px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message.user {
+  background: #003366;
+  color: #fff;
+  align-self: flex-end;
+  max-width: 85%;
+}
+
+.message.assistant {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  align-self: flex-start;
+  max-width: 95%;
+}
+
+.message.assistant.streaming::after {
+  content: "▋";
+  animation: blink 0.7s infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.tool-indicator {
+  font-size: 12px;
+  color: #6c757d;
+  padding: 4px 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  align-self: flex-start;
+}
+
+.notice {
+  padding: 12px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.notice a {
+  color: #003366;
+  font-weight: 600;
+}
+
+.hidden {
+  display: none;
+}
+
+.input-area {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+textarea {
+  flex: 1;
+  resize: none;
+  padding: 8px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #003366;
+}
+
+#send-btn {
+  padding: 8px 16px;
+  background: #003366;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  align-self: flex-end;
+}
+
+#send-btn:hover {
+  background: #004080;
+}
+
+#send-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.status {
+  font-size: 12px;
+  color: #6c757d;
+  min-height: 16px;
+  text-align: center;
+}

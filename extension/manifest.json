@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Aula Virtual Assistant - UNLu",
+  "version": "1.0.0",
+  "description": "Asistente de IA para el Aula Virtual de la Universidad Nacional de Luján",
+  "permissions": [
+    "cookies",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://platdig.unlu.edu.ar/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Aula Virtual Assistant"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
