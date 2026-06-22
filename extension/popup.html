@@ -9,8 +9,56 @@
     <div class="container">
       <header>
         <span class="logo">🎓</span>
-        <h1>Asistente UNLu</h1>
+        <div class="header-copy">
+          <h1>Asistente UNLu</h1>
+          <p>El chat queda abierto en el panel lateral y se guarda localmente.</p>
+        </div>
       </header>
+
+      <div class="session-bar">
+        <select id="session-select" aria-label="Chats guardados"></select>
+        <button id="new-chat-btn" type="button">Nuevo chat</button>
+      </div>
+
+      <section class="settings-card">
+        <div class="settings-row">
+          <label for="provider-select">Motor</label>
+          <select id="provider-select" aria-label="Proveedor del modelo">
+            <option value="gemini">Gemini</option>
+            <option value="ollama">Ollama</option>
+          </select>
+        </div>
+
+        <div id="gemini-settings" class="provider-settings">
+          <label for="gemini-model">Modelo Gemini</label>
+          <input
+            id="gemini-model"
+            type="text"
+            placeholder="gemini-2.5-flash"
+            autocomplete="off"
+          />
+
+          <label for="gemini-api-key">API key de Gemini</label>
+          <input
+            id="gemini-api-key"
+            type="password"
+            placeholder="Si queda vacía, se usa la del backend"
+            autocomplete="off"
+          />
+        </div>
+
+        <div id="ollama-settings" class="provider-settings hidden">
+          <label for="ollama-model">Modelo Ollama</label>
+          <input
+            id="ollama-model"
+            type="text"
+            placeholder="llama3.1"
+            autocomplete="off"
+          />
+        </div>
+
+        <p id="provider-hint" class="settings-hint"></p>
+      </section>
 
       <div id="messages" class="messages"></div>
 

@@ -5,14 +5,19 @@
   "description": "Asistente de IA para el Aula Virtual de la Universidad Nacional de Luján",
   "permissions": [
     "cookies",
-    "activeTab"
+    "activeTab",
+    "storage",
+    "sidePanel"
   ],
   "host_permissions": [
-    "https://platdig.unlu.edu.ar/*"
+    "https://platdig.unlu.edu.ar/*",
+    "http://localhost:8000/*"
   ],
   "action": {
-    "default_popup": "popup.html",
     "default_title": "Aula Virtual Assistant"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "background": {
     "service_worker": "background.js"

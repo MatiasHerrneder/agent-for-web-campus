@@ -3,9 +3,12 @@ from datetime import datetime as dt
 from zoneinfo import ZoneInfo
 
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
+
 from .crawler import crawl_page, get_courses_context
+from .models import LLMConfig
 
 SYSTEM_PROMPT = """Eres un asistente del Aula Virtual de la Universidad Nacional de Luján (UNLu).
 La plataforma es platdig.unlu.edu.ar (Educativa).
@@ -42,8 +45,16 @@ Estrategia:
 
 Respondé siempre en español."""
 
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_OLLAMA_MODEL = "llama3.1"
+DEFAULT_OLLAMA_BASE_URL = "http://ollama:11434"
 
-async def create_agent(cookies: dict[str, str], datetime: str | None = None):
+
+async def create_agent(
+    cookies: dict[str, str],
+    datetime: str | None = None,
+    llm_config: LLMConfig | None = None,
+):
     courses_context = await get_courses_context(cookies)
     system_prompt = SYSTEM_PROMPT
     now = datetime or dt.now(ZoneInfo("America/Argentina/Buenos_Aires")).strftime("%A, %d de %B de %Y, %H:%M")
@@ -51,12 +62,7 @@ async def create_agent(cookies: dict[str, str], datetime: str | None = None):
     if courses_context:
         system_prompt += f"\n\n{courses_context}"
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=os.getenv("GEMINI_API_KEY"),
-        streaming=True,
-        max_retries=0,
-    )
+    llm = build_llm(llm_config)
 
     @tool
     async def get_course(id_curso: str) -> str:
@@ -75,3 +81,42 @@ async def create_agent(cookies: dict[str, str], datetime: str | None = None):
         tools=[get_course, crawl_url],
         state_modifier=system_prompt,
     )
+
+
+def build_llm(llm_config: LLMConfig | None):
+    llm_config = llm_config or LLMConfig()
+
+    if llm_config.provider == "gemini":
+        api_key = first_non_empty(llm_config.api_key, os.getenv("GEMINI_API_KEY"))
+        if not api_key:
+            raise ValueError(
+                "No hay una API key de Gemini configurada. Cargala en la extensión o definí GEMINI_API_KEY en el backend."
+            )
+
+        return ChatGoogleGenerativeAI(
+            model=first_non_empty(llm_config.model, os.getenv("GEMINI_MODEL"), DEFAULT_GEMINI_MODEL),
+            google_api_key=api_key,
+            streaming=True,
+            max_retries=0,
+        )
+
+    if llm_config.provider == "ollama":
+        return ChatOllama(
+            model=first_non_empty(llm_config.model, os.getenv("OLLAMA_MODEL"), DEFAULT_OLLAMA_MODEL),
+            base_url=os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL),
+            temperature=0,
+        )
+
+    raise ValueError(f"Proveedor de LLM no soportado: {llm_config.provider}")
+
+
+def first_non_empty(*values: str | None) -> str | None:
+    for value in values:
+        if value is None:
+            continue
+
+        normalized = value.strip()
+        if normalized:
+            return normalized
+
+    return None

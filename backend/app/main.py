@@ -39,11 +39,16 @@ async def query(request: QueryRequest):
       - done:       stream finished     {}
       - error:      something failed    { error: str }
     """
-    logger.info("New query received: %r", request.query)
-    agent = await create_agent(request.cookies, request.datetime)
+    logger.info(
+        "New query received | provider=%s | model=%s | query=%r",
+        request.llm.provider,
+        request.llm.model or "default",
+        request.query,
+    )
 
     async def event_stream():
         try:
+            agent = await create_agent(request.cookies, request.datetime, request.llm)
             messages = [(m.role, m.content) for m in request.history]
             messages.append(("user", request.query))
             async for event in agent.astream_events(
