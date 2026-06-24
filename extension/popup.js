@@ -1,11 +1,13 @@
 const BACKEND_URL = "http://localhost:8000";
 const MAX_HISTORY_TURNS = 5; // keep last 5 exchanges (10 messages)
 const MAX_STORED_SESSIONS = 20;
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+const OLLAMA_MODELS = ["qwen2.5", "llama3.1", "qwen3:14b"];
 const DEFAULT_SETTINGS = {
   provider: "gemini",
-  geminiModel: "gemini-2.5-flash",
+  geminiModel: GEMINI_MODELS[0],
   geminiApiKey: "",
-  ollamaModel: "llama3.1",
+  ollamaModel: OLLAMA_MODELS[0],
 };
 const STORAGE_KEYS = {
   activeSessionId: "activeChatSessionId",
@@ -48,9 +50,9 @@ function bindEvents() {
   document.getElementById("new-chat-btn").addEventListener("click", createNewChat);
   document.getElementById("session-select").addEventListener("change", handleSessionChange);
   document.getElementById("provider-select").addEventListener("change", handleProviderChange);
-  document.getElementById("gemini-model").addEventListener("input", handleTextSettingsChange);
+  document.getElementById("gemini-model").addEventListener("change", handleTextSettingsChange);
   document.getElementById("gemini-api-key").addEventListener("input", handleTextSettingsChange);
-  document.getElementById("ollama-model").addEventListener("input", handleTextSettingsChange);
+  document.getElementById("ollama-model").addEventListener("change", handleTextSettingsChange);
   document.getElementById("query").addEventListener("keydown", (event) => {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       sendQuery();
@@ -151,13 +153,17 @@ function hydrateSettings(localState, sessionState) {
   const rawSettings = localState[STORAGE_KEYS.settings] || {};
   assistantSettings = {
     provider: rawSettings.provider === "ollama" ? "ollama" : DEFAULT_SETTINGS.provider,
-    geminiModel: normalizeSettingValue(rawSettings.geminiModel, DEFAULT_SETTINGS.geminiModel),
+    geminiModel: pickAllowedModel(rawSettings.geminiModel, GEMINI_MODELS, DEFAULT_SETTINGS.geminiModel),
     geminiApiKey: normalizeSettingValue(
       sessionState[STORAGE_KEYS.geminiApiKey],
       DEFAULT_SETTINGS.geminiApiKey
     ),
-    ollamaModel: normalizeSettingValue(rawSettings.ollamaModel, DEFAULT_SETTINGS.ollamaModel),
+    ollamaModel: pickAllowedModel(rawSettings.ollamaModel, OLLAMA_MODELS, DEFAULT_SETTINGS.ollamaModel),
   };
+}
+
+function pickAllowedModel(value, allowed, fallback) {
+  return allowed.includes(value) ? value : fallback;
 }
 
 function normalizeSettingValue(value, fallback) {
@@ -331,14 +337,16 @@ function handleProviderChange() {
 }
 
 function handleTextSettingsChange() {
-  assistantSettings.geminiModel = normalizeSettingValue(
+  assistantSettings.geminiModel = pickAllowedModel(
     document.getElementById("gemini-model").value,
-    ""
+    GEMINI_MODELS,
+    DEFAULT_SETTINGS.geminiModel
   );
   assistantSettings.geminiApiKey = document.getElementById("gemini-api-key").value.trim();
-  assistantSettings.ollamaModel = normalizeSettingValue(
+  assistantSettings.ollamaModel = pickAllowedModel(
     document.getElementById("ollama-model").value,
-    ""
+    OLLAMA_MODELS,
+    DEFAULT_SETTINGS.ollamaModel
   );
   schedulePersist();
 }

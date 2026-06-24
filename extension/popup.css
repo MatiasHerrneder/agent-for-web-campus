@@ -60,6 +60,7 @@ header h1 {
 
 #session-select,
 #provider-select,
+.settings-card select,
 .settings-card input {
   flex: 1;
   min-width: 0;
@@ -71,6 +72,7 @@ header h1 {
 }
 
 #provider-select,
+.settings-card select,
 .settings-card input {
   width: 100%;
 }
@@ -228,6 +230,7 @@ textarea:focus {
 #provider-select:focus,
 #new-chat-btn:focus,
 #send-btn:focus,
+.settings-card select:focus,
 .settings-card input:focus,
 textarea:focus {
   box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.12);
@@ -258,6 +261,7 @@ textarea:focus {
 #new-chat-btn:disabled,
 #session-select:disabled,
 #provider-select:disabled,
+.settings-card select:disabled,
 .settings-card input:disabled {
   opacity: 0.65;
   cursor: not-allowed;

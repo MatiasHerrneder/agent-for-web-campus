@@ -46,7 +46,7 @@ Estrategia:
 Respondé siempre en español."""
 
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-DEFAULT_OLLAMA_MODEL = "llama3.1"
+DEFAULT_OLLAMA_MODEL = "qwen2.5"
 DEFAULT_OLLAMA_BASE_URL = "http://ollama:11434"
 
 
@@ -101,10 +101,16 @@ def build_llm(llm_config: LLMConfig | None):
         )
 
     if llm_config.provider == "ollama":
+        # keep_alive controls how long Ollama keeps the model in VRAM after a
+        # request. Models are loaded on demand per request, so only the model
+        # actually being used occupies memory; combined with
+        # OLLAMA_MAX_LOADED_MODELS=1 on the server, at most one is ever loaded.
         return ChatOllama(
             model=first_non_empty(llm_config.model, os.getenv("OLLAMA_MODEL"), DEFAULT_OLLAMA_MODEL) or DEFAULT_OLLAMA_MODEL,
             base_url=os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL),
             temperature=0,
+            keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "5m"),
+            reasoning=False,
         )
 
     raise ValueError(f"Proveedor de LLM no soportado: {llm_config.provider}")

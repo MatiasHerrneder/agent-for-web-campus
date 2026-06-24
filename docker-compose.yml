@@ -25,6 +25,17 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    environment:
+      # Never keep more than one model in VRAM at a time: requesting a different
+      # model evicts the previous one instead of stacking them.
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 10s
@@ -44,7 +55,7 @@ services:
     entrypoint:
       - /bin/sh
       - -c
-      - ollama pull "${OLLAMA_MODEL:-llama3.1}"
+      - ollama pull qwen2.5 && ollama pull llama3.1 && ollama pull qwen3:14b
     restart: "no"
 
 volumes:
