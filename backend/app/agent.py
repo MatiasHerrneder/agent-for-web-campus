@@ -102,7 +102,7 @@ def build_llm(llm_config: LLMConfig | None):
 
     if llm_config.provider == "ollama":
         return ChatOllama(
-            model=first_non_empty(llm_config.model, os.getenv("OLLAMA_MODEL"), DEFAULT_OLLAMA_MODEL),
+            model=first_non_empty(llm_config.model, os.getenv("OLLAMA_MODEL"), DEFAULT_OLLAMA_MODEL) or DEFAULT_OLLAMA_MODEL,
             base_url=os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL),
             temperature=0,
         )
