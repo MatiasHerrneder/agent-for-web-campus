@@ -18,44 +18,64 @@
       <div class="session-bar">
         <select id="session-select" aria-label="Chats guardados"></select>
         <button id="new-chat-btn" type="button">Nuevo chat</button>
+        <button id="delete-chat-btn" type="button" aria-label="Eliminar chat" title="Eliminar chat">🗑️</button>
       </div>
 
-      <section class="settings-card">
-        <div class="settings-row">
-          <label for="provider-select">Motor</label>
-          <select id="provider-select" aria-label="Proveedor del modelo">
-            <option value="gemini">Gemini</option>
-            <option value="ollama">Ollama</option>
-          </select>
+      <details class="settings-card" id="advanced-settings">
+        <summary class="settings-summary">
+          <span class="settings-summary-icon">⚙️</span>
+          <span>Opciones del asistente</span>
+        </summary>
+
+        <div class="settings-body">
+          <div class="settings-row">
+            <label for="provider-select">Motor</label>
+            <select id="provider-select" aria-label="Proveedor del modelo">
+              <option value="gemini">Gemini</option>
+              <option value="ollama">Ollama</option>
+            </select>
+          </div>
+
+          <div id="gemini-settings" class="provider-settings">
+            <label for="gemini-model">Modelo Gemini</label>
+            <select id="gemini-model" aria-label="Modelo de Gemini">
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+            </select>
+
+            <div class="toggle-row">
+              <label class="switch">
+                <input type="checkbox" id="use-own-key" aria-label="Usar mi propia API key" />
+                <span class="slider"></span>
+              </label>
+              <div class="toggle-copy">
+                <span class="toggle-title">Usar mi propia API key</span>
+                <span class="toggle-desc">Si el modelo del asistente se quedó sin usos, podés probar con el tuyo.</span>
+              </div>
+            </div>
+
+            <div id="api-key-wrap" class="api-key-wrap hidden">
+              <label for="gemini-api-key">API key de Gemini</label>
+              <input
+                id="gemini-api-key"
+                type="password"
+                placeholder="Pegá tu API key acá"
+                autocomplete="off"
+              />
+              <p id="api-key-hint" class="settings-hint"></p>
+            </div>
+          </div>
+
+          <div id="ollama-settings" class="provider-settings hidden">
+            <label for="ollama-model">Modelo Ollama</label>
+            <select id="ollama-model" aria-label="Modelo de Ollama">
+              <option value="qwen2.5">Qwen 2.5</option>
+              <option value="llama3.1">Llama 3.1</option>
+              <option value="qwen3:14b">Qwen 3 (14B)</option>
+            </select>
+          </div>
         </div>
-
-        <div id="gemini-settings" class="provider-settings">
-          <label for="gemini-model">Modelo Gemini</label>
-          <select id="gemini-model" aria-label="Modelo de Gemini">
-            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-          </select>
-
-          <label for="gemini-api-key">API key de Gemini</label>
-          <input
-            id="gemini-api-key"
-            type="password"
-            placeholder="Si queda vacía, se usa la del backend"
-            autocomplete="off"
-          />
-        </div>
-
-        <div id="ollama-settings" class="provider-settings hidden">
-          <label for="ollama-model">Modelo Ollama</label>
-          <select id="ollama-model" aria-label="Modelo de Ollama">
-            <option value="qwen2.5">Qwen 2.5</option>
-            <option value="llama3.1">Llama 3.1</option>
-            <option value="qwen3:14b">Qwen 3 (14B)</option>
-          </select>
-        </div>
-
-        <p id="provider-hint" class="settings-hint"></p>
-      </section>
+      </details>
 
       <div id="messages" class="messages"></div>
 

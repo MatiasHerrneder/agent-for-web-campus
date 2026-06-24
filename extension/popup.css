@@ -93,14 +93,140 @@ header h1 {
   background: #e8f1ff;
 }
 
+#delete-chat-btn {
+  padding: 8px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: #fff;
+  color: #6c757d;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#delete-chat-btn:hover {
+  background: #fdeaea;
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
 .settings-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
   border: 1px solid #dee2e6;
   border-radius: 8px;
   background: #fff;
+}
+
+.settings-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.settings-summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-summary::after {
+  content: "▸";
+  margin-left: auto;
+  color: #adb5bd;
+  transition: transform 0.15s ease;
+}
+
+.settings-card[open] .settings-summary::after {
+  transform: rotate(90deg);
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch .slider {
+  position: absolute;
+  inset: 0;
+  background: #ced4da;
+  border-radius: 22px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.switch .slider::before {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.switch input:checked + .slider {
+  background: #003366;
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(16px);
+}
+
+.switch input:focus-visible + .slider {
+  box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.12);
+}
+
+.toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.toggle-desc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #6c757d;
+}
+
+.api-key-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .settings-row,
@@ -151,6 +277,74 @@ header h1 {
   border: 1px solid #dee2e6;
   align-self: flex-start;
   max-width: 95%;
+  white-space: normal;
+}
+
+.message.assistant > *:first-child {
+  margin-top: 0;
+}
+
+.message.assistant > *:last-child {
+  margin-bottom: 0;
+}
+
+.message.assistant p {
+  margin: 0 0 8px;
+}
+
+.message.assistant h1,
+.message.assistant h2,
+.message.assistant h3,
+.message.assistant h4,
+.message.assistant h5,
+.message.assistant h6 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #003366;
+  margin: 10px 0 4px;
+}
+
+.message.assistant ul,
+.message.assistant ol {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+
+.message.assistant li {
+  margin: 2px 0;
+}
+
+.message.assistant a {
+  color: #003366;
+  font-weight: 600;
+}
+
+.message.assistant code {
+  background: #eef2f6;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: "Consolas", "Menlo", monospace;
+  font-size: 12px;
+}
+
+.message.assistant pre {
+  background: #f1f3f5;
+  padding: 8px 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.message.assistant pre code {
+  background: none;
+  padding: 0;
+}
+
+.message.assistant blockquote {
+  margin: 6px 0;
+  padding-left: 10px;
+  border-left: 3px solid #ced4da;
+  color: #495057;
 }
 
 .message.empty {
@@ -222,6 +416,7 @@ textarea:focus {
 #session-select:focus,
 #provider-select:focus,
 #new-chat-btn:focus,
+#delete-chat-btn:focus,
 #send-btn:focus {
   outline: none;
 }
@@ -229,6 +424,7 @@ textarea:focus {
 #session-select:focus,
 #provider-select:focus,
 #new-chat-btn:focus,
+#delete-chat-btn:focus,
 #send-btn:focus,
 .settings-card select:focus,
 .settings-card input:focus,
@@ -259,6 +455,7 @@ textarea:focus {
 }
 
 #new-chat-btn:disabled,
+#delete-chat-btn:disabled,
 #session-select:disabled,
 #provider-select:disabled,
 .settings-card select:disabled,

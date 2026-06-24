@@ -1,12 +1,14 @@
 const BACKEND_URL = "http://localhost:8000";
 const MAX_HISTORY_TURNS = 5; // keep last 5 exchanges (10 messages)
 const MAX_STORED_SESSIONS = 20;
+const MAX_MESSAGES_PER_SESSION = 40; // cap per chat so storage stays bounded
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 const OLLAMA_MODELS = ["qwen2.5", "llama3.1", "qwen3:14b"];
 const DEFAULT_SETTINGS = {
   provider: "gemini",
   geminiModel: GEMINI_MODELS[0],
   geminiApiKey: "",
+  useOwnKey: false,
   ollamaModel: OLLAMA_MODELS[0],
 };
 const STORAGE_KEYS = {
@@ -48,13 +50,17 @@ async function init() {
 function bindEvents() {
   document.getElementById("send-btn").addEventListener("click", sendQuery);
   document.getElementById("new-chat-btn").addEventListener("click", createNewChat);
+  document.getElementById("delete-chat-btn").addEventListener("click", deleteActiveChat);
   document.getElementById("session-select").addEventListener("change", handleSessionChange);
   document.getElementById("provider-select").addEventListener("change", handleProviderChange);
   document.getElementById("gemini-model").addEventListener("change", handleTextSettingsChange);
+  document.getElementById("use-own-key").addEventListener("change", handleUseOwnKeyChange);
   document.getElementById("gemini-api-key").addEventListener("input", handleTextSettingsChange);
   document.getElementById("ollama-model").addEventListener("change", handleTextSettingsChange);
   document.getElementById("query").addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+    // Enter sends; Shift+Enter inserts a newline.
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
       sendQuery();
     }
   });
@@ -95,6 +101,7 @@ async function persistState() {
     [STORAGE_KEYS.settings]: {
       provider: assistantSettings.provider,
       geminiModel: assistantSettings.geminiModel,
+      useOwnKey: assistantSettings.useOwnKey,
       ollamaModel: assistantSettings.ollamaModel,
     },
   };
@@ -151,13 +158,16 @@ function hydrateSessions(storedState) {
 
 function hydrateSettings(localState, sessionState) {
   const rawSettings = localState[STORAGE_KEYS.settings] || {};
+  const geminiApiKey = normalizeSettingValue(
+    sessionState[STORAGE_KEYS.geminiApiKey],
+    DEFAULT_SETTINGS.geminiApiKey
+  );
   assistantSettings = {
     provider: rawSettings.provider === "ollama" ? "ollama" : DEFAULT_SETTINGS.provider,
     geminiModel: pickAllowedModel(rawSettings.geminiModel, GEMINI_MODELS, DEFAULT_SETTINGS.geminiModel),
-    geminiApiKey: normalizeSettingValue(
-      sessionState[STORAGE_KEYS.geminiApiKey],
-      DEFAULT_SETTINGS.geminiApiKey
-    ),
+    geminiApiKey,
+    // Show the key field if the user opted in before, or if a key is already stored.
+    useOwnKey: rawSettings.useOwnKey === true || Boolean(geminiApiKey),
     ollamaModel: pickAllowedModel(rawSettings.ollamaModel, OLLAMA_MODELS, DEFAULT_SETTINGS.ollamaModel),
   };
 }
@@ -233,7 +243,16 @@ function buildSessionTitle(messages, fallbackTimestamp) {
 }
 
 function limitStoredSessions(sessions) {
-  return sortSessionsByRecent(sessions).slice(0, MAX_STORED_SESSIONS);
+  return sortSessionsByRecent(sessions)
+    .slice(0, MAX_STORED_SESSIONS)
+    .map(capSessionMessages);
+}
+
+function capSessionMessages(session) {
+  if (session.messages.length > MAX_MESSAGES_PER_SESSION) {
+    session.messages = session.messages.slice(-MAX_MESSAGES_PER_SESSION);
+  }
+  return session;
 }
 
 function sortSessionsByRecent(sessions) {
@@ -264,15 +283,15 @@ function renderSettings() {
   document.getElementById("gemini-model").value = assistantSettings.geminiModel;
   document.getElementById("gemini-api-key").value = assistantSettings.geminiApiKey;
   document.getElementById("ollama-model").value = assistantSettings.ollamaModel;
+  document.getElementById("use-own-key").checked = assistantSettings.useOwnKey;
 
   const isGemini = assistantSettings.provider === "gemini";
   document.getElementById("gemini-settings").classList.toggle("hidden", !isGemini);
   document.getElementById("ollama-settings").classList.toggle("hidden", isGemini);
-  document.getElementById("provider-hint").textContent = isGemini
-    ? chrome.storage.session
-      ? "Si dejás la API key vacía, el backend usa GEMINI_API_KEY. La key escrita acá se guarda sólo mientras el navegador siga abierto."
-      : "Si dejás la API key vacía, el backend usa GEMINI_API_KEY. La key escrita acá se guarda en el navegador para reutilizarla desde la extensión."
-    : "El backend enviará la consulta al servicio de Ollama del docker compose usando el modelo indicado.";
+  document.getElementById("api-key-wrap").classList.toggle("hidden", !assistantSettings.useOwnKey);
+  document.getElementById("api-key-hint").textContent = chrome.storage.session
+    ? "La key escrita acá se guarda sólo mientras el navegador siga abierto."
+    : "La key escrita acá se guarda en el navegador para reutilizarla.";
 }
 
 function renderMessages() {
@@ -300,7 +319,7 @@ function appendMessage(role, text, messageId = "") {
   const messages = document.getElementById("messages");
   const el = document.createElement("div");
   el.className = `message ${role}`;
-  el.textContent = text;
+  setMessageContent(el, role, text);
 
   if (messageId) {
     el.dataset.messageId = messageId;
@@ -309,6 +328,152 @@ function appendMessage(role, text, messageId = "") {
   messages.appendChild(el);
   scrollToBottom();
   return el;
+}
+
+// Assistant replies arrive as markdown; render them as HTML. User and system
+// messages are rendered as plain text to avoid interpreting their input.
+function setMessageContent(el, role, text) {
+  if (role === "assistant") {
+    el.innerHTML = renderMarkdown(text);
+  } else {
+    el.textContent = text;
+  }
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function sanitizeUrl(url) {
+  const trimmed = url.trim();
+  return /^(https?:|mailto:)/i.test(trimmed) ? trimmed.replace(/"/g, "%22") : null;
+}
+
+// Inline formatting: code, bold, italic, links. HTML is escaped first, so the
+// only tags that can appear are the ones we emit here. Code spans are split out
+// first so emphasis markers inside them are left untouched.
+function renderInline(text) {
+  return escapeHtml(text)
+    .split(/(`[^`]+`)/)
+    .map((part) =>
+      part.startsWith("`") && part.endsWith("`") && part.length > 1
+        ? `<code>${part.slice(1, -1)}</code>`
+        : applyEmphasis(part)
+    )
+    .join("");
+}
+
+function applyEmphasis(s) {
+  return s
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/(^|[^\w])_([^_]+)_/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (match, label, url) => {
+      const safe = sanitizeUrl(url);
+      return safe
+        ? `<a href="${safe}" target="_blank" rel="noopener noreferrer">${label}</a>`
+        : label;
+    });
+}
+
+// Minimal block-level markdown: fenced code, headings, lists, blockquotes,
+// paragraphs. Good enough for the assistant's output without a dependency.
+function renderMarkdown(src) {
+  const lines = String(src).replace(/\r\n/g, "\n").split("\n");
+  const out = [];
+  let listType = null;
+  let i = 0;
+
+  const closeList = () => {
+    if (listType) {
+      out.push(`</${listType}>`);
+      listType = null;
+    }
+  };
+
+  const isBlockStart = (line) =>
+    /^```/.test(line) ||
+    /^#{1,6}\s/.test(line) ||
+    /^>\s?/.test(line) ||
+    /^\s*[-*+]\s+/.test(line) ||
+    /^\s*\d+\.\s+/.test(line);
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (/^```/.test(line)) {
+      closeList();
+      i++;
+      const code = [];
+      while (i < lines.length && !/^```/.test(lines[i])) code.push(lines[i++]);
+      i++; // skip closing fence (or run off the end)
+      out.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
+      closeList();
+      const level = heading[1].length;
+      out.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
+      i++;
+      continue;
+    }
+
+    const quote = line.match(/^>\s?(.*)$/);
+    if (quote) {
+      closeList();
+      out.push(`<blockquote>${renderInline(quote[1])}</blockquote>`);
+      i++;
+      continue;
+    }
+
+    const unordered = line.match(/^\s*[-*+]\s+(.*)$/);
+    if (unordered) {
+      if (listType !== "ul") {
+        closeList();
+        out.push("<ul>");
+        listType = "ul";
+      }
+      out.push(`<li>${renderInline(unordered[1])}</li>`);
+      i++;
+      continue;
+    }
+
+    const ordered = line.match(/^\s*\d+\.\s+(.*)$/);
+    if (ordered) {
+      if (listType !== "ol") {
+        closeList();
+        out.push("<ol>");
+        listType = "ol";
+      }
+      out.push(`<li>${renderInline(ordered[1])}</li>`);
+      i++;
+      continue;
+    }
+
+    if (line.trim() === "") {
+      closeList();
+      i++;
+      continue;
+    }
+
+    closeList();
+    const paragraph = [line];
+    i++;
+    while (i < lines.length && lines[i].trim() !== "" && !isBlockStart(lines[i])) {
+      paragraph.push(lines[i++]);
+    }
+    out.push(`<p>${paragraph.map(renderInline).join("<br>")}</p>`);
+  }
+
+  closeList();
+  return out.join("");
 }
 
 function scrollToBottom() {
@@ -336,6 +501,12 @@ function handleProviderChange() {
   schedulePersist(0);
 }
 
+function handleUseOwnKeyChange() {
+  assistantSettings.useOwnKey = document.getElementById("use-own-key").checked;
+  renderSettings();
+  schedulePersist(0);
+}
+
 function handleTextSettingsChange() {
   assistantSettings.geminiModel = pickAllowedModel(
     document.getElementById("gemini-model").value,
@@ -349,6 +520,30 @@ function handleTextSettingsChange() {
     DEFAULT_SETTINGS.ollamaModel
   );
   schedulePersist();
+}
+
+function deleteActiveChat() {
+  const session = getActiveSession();
+  if (!session) return;
+
+  if (session.messages.length && !confirm("¿Eliminar este chat? No se puede deshacer.")) {
+    return;
+  }
+
+  chatSessions = chatSessions.filter((item) => item.id !== activeSessionId);
+
+  if (!chatSessions.length) {
+    const fresh = buildEmptySession();
+    chatSessions = [fresh];
+    activeSessionId = fresh.id;
+  } else {
+    activeSessionId = sortSessionsByRecent(chatSessions)[0].id;
+  }
+
+  renderSessionPicker();
+  renderMessages();
+  setStatus("");
+  schedulePersist(0);
 }
 
 function createNewChat() {
@@ -463,7 +658,7 @@ function buildLLMRequestPayload() {
   return {
     provider: "gemini",
     model: assistantSettings.geminiModel || DEFAULT_SETTINGS.geminiModel,
-    api_key: assistantSettings.geminiApiKey || null,
+    api_key: assistantSettings.useOwnKey ? assistantSettings.geminiApiKey || null : null,
   };
 }
 
@@ -481,9 +676,11 @@ function findMessageElement(messageId) {
 function toggleComposerDisabled(disabled) {
   document.getElementById("send-btn").disabled = disabled || !Object.keys(sessionCookies).length;
   document.getElementById("new-chat-btn").disabled = disabled;
+  document.getElementById("delete-chat-btn").disabled = disabled;
   document.getElementById("session-select").disabled = disabled;
   document.getElementById("provider-select").disabled = disabled;
   document.getElementById("gemini-model").disabled = disabled;
+  document.getElementById("use-own-key").disabled = disabled;
   document.getElementById("gemini-api-key").disabled = disabled;
   document.getElementById("ollama-model").disabled = disabled;
 }
@@ -536,7 +733,7 @@ function handleSSEEvent(eventType, raw, assistantEl, assistantMessage) {
   if (eventType === "token") {
     assistantMessage.content += data.content;
     if (assistantEl) {
-      assistantEl.textContent = assistantMessage.content;
+      assistantEl.innerHTML = renderMarkdown(assistantMessage.content);
     }
     scrollToBottom();
     schedulePersist();
