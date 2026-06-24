@@ -1,5 +1,5 @@
 const BACKEND_URL = "http://localhost:8000";
-const MAX_HISTORY_TURNS = 10; // keep last 5 exchanges (10 messages)
+const MAX_HISTORY_TURNS = 10; // keep last 10 exchanges (20 messages)
 const MAX_STORED_SESSIONS = 20;
 const MAX_MESSAGES_PER_SESSION = 40; // cap per chat so storage stays bounded
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
