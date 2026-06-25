@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 BASE_URL = "https://platdig.unlu.edu.ar"
 DASHBOARD_URL = "/escritorio.cgi"
-MAX_CONTENT_LENGTH = 8000
+MAX_CONTENT_LENGTH = 16000
 
 # Noise elements that add no readable content
 _NOISE_IDS = {"function_bar", "encabezado", "nav", "fondo-negro", "ajax_indicator", "actions"}
@@ -15,6 +15,8 @@ _NOISE_TAGS = ["script", "style", "head", "footer", "template"]
 
 async def crawl_page(url: str, cookies: dict[str, str]) -> str:
     if not url.startswith("http"):
+        if not url.startswith("/"):
+            url = "/" + url
         url = BASE_URL + url
 
     async with httpx.AsyncClient(
@@ -30,6 +32,11 @@ async def crawl_page(url: str, cookies: dict[str, str]) -> str:
 
     soup = BeautifulSoup(response.text, "html.parser")
 
+    # Extract available section links before removing nav (provides context to
+    # LLM). Must run before the _NOISE_IDS loop below, which decomposes the
+    # "nav" container that holds menu_secciones.
+    nav_links = _extract_nav_links(soup)
+
     # Remove non-content elements
     for tag in soup(_NOISE_TAGS):
         tag.decompose()
@@ -37,9 +44,6 @@ async def crawl_page(url: str, cookies: dict[str, str]) -> str:
         el = soup.find(id=noise_id)
         if el:
             el.decompose()
-
-    # Extract available section links before removing nav (provides context to LLM)
-    nav_links = _extract_nav_links(soup)
 
     # The platform puts content in <div id="main">, not a <main> tag
     main = (
@@ -50,6 +54,11 @@ async def crawl_page(url: str, cookies: dict[str, str]) -> str:
 
     if not main:
         return nav_links
+
+    # Inline the URLs of content links so the agent can navigate sub-sections
+    # (e.g. the "tópicos" inside Presentación, threads inside Foros). get_text()
+    # below only keeps text, so without this the hrefs would be lost.
+    _inline_content_links(main)
 
     text = main.get_text(separator="\n", strip=True)
     lines = [line for line in text.splitlines() if line.strip()]
@@ -94,6 +103,29 @@ async def get_courses_context(cookies: dict[str, str]) -> str:
     return "\n".join(lines)
 
 
+def _normalize_href(href: str) -> str | None:
+    """Turn a content href into a URL usable by crawl_url, or None if not navigable."""
+    href = href.strip()
+    if not href or href.startswith(("javascript:", "mailto:", "#")):
+        return None
+    if href.startswith("http"):
+        return href if href.startswith(BASE_URL) else None
+    return href if href.startswith("/") else "/" + href
+
+
+def _inline_content_links(main) -> None:
+    """Rewrite each content <a> in place to embed its URL next to the link text,
+    so it survives get_text() and the agent can follow the link."""
+    for a in main.find_all("a", href=True):
+        text = a.get_text(strip=True)
+        if not text:
+            continue
+        url = _normalize_href(str(a["href"]))
+        if not url:
+            continue
+        a.string = f"{text} [{url}]"
+
+
 def _extract_nav_links(soup: BeautifulSoup) -> str:
     """Extract course section links from the sidebar navigation."""
     menu = soup.find("div", id="menu_secciones")
@@ -103,9 +135,9 @@ def _extract_nav_links(soup: BeautifulSoup) -> str:
     links = []
     for a in menu.find_all("a", href=True):
         name = a.get_text(strip=True)
-        href = str(a["href"])
-        if name and not href.startswith("javascript:"):
-            links.append(f"  - {name}: {href}")
+        url = _normalize_href(str(a["href"]))
+        if name and url:
+            links.append(f"  - {name}: {url}")
 
     if not links:
         return ""
